@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparative Judgement</title>
+    <link rel="icon" href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3e%3ccircle cx='50' cy='50' r='45' fill='%23e74c3c'/%3e%3ccircle cx='50' cy='50' r='20' fill='%23ffffff'/%3e%3c/svg%3e">
+    <style>
+        /* ================================================================= */
+        /* GLOBAL COLOR THEME DEFINITIONS                                    */
+        /* ================================================================= */
+        :root {
+            /* Primary Brand Colors (Default: Red Theme) */
+            --primary-color: #e74c3c;
+            --primary-color-hover: #c0392b;
+            --gradient-start: #502c2c;
+            --gradient-end: #e74c3c;
+            --header-bg: #502c2c;
+            --spinner-accent: #e74c3c;
+
+            /* Secondary / Neutral Colors */
+            --secondary-color: #95a5a6;
+            --secondary-color-hover: #7f8c8d;
+            --spinner-track: #f3f3f3;
+
+            /* Background Colors */
+            --body-bg: #f5f5f5;
+            --panel-bg: white;
+            --panel-bg-light: #fafafa;
+            --progress-bg: #ecf0f1;
+            --overlay-bg: rgba(0, 0, 0, 0.6);
+
+            /* Text Colors */
+            --text-dark: #333;
+            --text-light: white;
+            --text-muted: #7f8c8d;
+            --text-dialog-subtitle: #555;
+            --text-shortcut-hint: rgba(255, 255, 255, 0.9);
+
+            /* Borders and Shadows */
+            --border-light: #ddd;
+            --border-medium: #ccc;
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            --shadow-heavy: rgba(0, 0, 0, 0.3);
+        }
+
+        /* General Body and Font Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'STIX Two Math', serif;
+            background: var(--body-bg);
+            display: flex;
+            flex-direction: column;
+            color: var(--text-dark);
+        }
+
+        /* Top Toolbar */
+        .top-toolbar {
+            display: flex;
+            align-items: center; 
+            gap: 12px;
+            padding: 10px;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+            transition: align-items 0.33s ease;
+        }
+
+        /* Progress Bar */
+        .progress-container { flex-grow: 1; min-width: 150px; }
+        .progress-bar { width: 100%; height: 20px; background: var(--progress-bg); border-radius: 10px; overflow: hidden; margin-bottom: 4px; }
+        .progress-fill { height: 100%; background: linear-gradient(75deg, var(--gradient-start), var(--gradient-end)); width: 0%; transition: width 0.33s ease, background 0.5s ease; }
+        .progress-text { text-align: center; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+
+        /* Main File Content Area */
+        .main-container { flex-grow: 1; display: flex; overflow: hidden; padding: 10px; gap: 10px; }
+
+        .file-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px var(--shadow-light);
+            overflow: hidden;
+            position: relative; /* Crucial for positioning the flag dialog inside */
+        }
+        
+        /* Hides the content of a panel when the dialog is shown inside it */
+        .file-panel.dialog-active .file-header,
+        .file-panel.dialog-active .file-container {
+            visibility: hidden;
+        }
+
+        .file-header { background: var(--header-bg); color: var(--text-light); padding: 10px; text-align: center; transition: background 0.5s ease; }
+        .file-container { flex-grow: 1; overflow: hidden; background: var(--panel-bg-light); position: relative; display: flex; justify-content: center; align-items: center; }
+        .file-iframe { width: 100%; height: 100%; border: none; }
+        .file-image { width: 100%; height: 100%; object-fit: contain; } /* Ensure image/video fits without distortion */
+        .file-audio { margin: 50px; width: calc(100% - 100px); } /* Inset border for audio */
+
+
+        /* Buttons & Controls */
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: all 0.33s ease; font-family: "STIX Two Math", serif; text-align: center; white-space: nowrap; }
+        .shortcut-hint { font-size: 12px; color: var(--text-shortcut-hint); margin-top: 5px; opacity: 0.9; }
+        body.hide-shortcuts .shortcut-hint { display: none; }
+        body.hide-shortcuts .top-toolbar { align-items: flex-start; }
+        .btn-decision { background: var(--primary-color); color: var(--text-light); }
+        .btn-decision:hover:not(:disabled) { background: var(--primary-color-hover); transform: translateY(-2px); }
+        .btn-secondary { background: var(--secondary-color); color: var(--text-light); }
+        .btn-secondary:hover:not(:disabled) { background: var(--secondary-color-hover); transform: translateY(-2px); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-flag-symbol { font-size: 16px; line-height: 1; }
+        .btn-flagged { background: var(--header-bg) !important; color: var(--text-light) !important;}
+
+        /* NEW: File Input Screen Styles (from Marking Criteria) */
+        .initial-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .file-input-box {
+            padding: 40px 50px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow-light);
+            text-align: center;
+            max-width: 550px;
+        }
+        .file-input-box h1 {
+            font-size: 2.5rem;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+            font-weight: normal;
+        }
+        #instruction-list {
+            text-align: left;
+            margin-bottom: 2rem;
+            padding-left: 25px;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+        #instruction-list li {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Dialogs */
+        .dialog-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay-bg); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        
+        /* This is the content box used by all dialogs */
+        .dialog-content { background: var(--panel-bg); padding: 30px; border-radius: 12px; text-align: left; width: 90%; max-width: 450px; box-shadow: 0 10px 30px var(--shadow-heavy); z-index: 1001; }
+        .dialog-title { font-size: 24px; color: var(--gradient-start); margin-bottom: 20px; text-align: center; transition: color 0.5s ease; }
+        .dialog-stats { margin-bottom: 20px; color: var(--text-dark); line-height: 1.6; max-height: 200px; overflow-y: auto; text-align: center; }
+        .dialog-button-container { text-align: center; display: flex; gap: 10px; justify-content: center; }
+
+        /* Flag Dialog is now positioned within an inactive file panel */
+        #flagDialog {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--panel-bg); /* Use panel background to cover it */
+            display: none; /* Initially hidden, shown by JS */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            z-index: 500; /* Above hidden panel content */
+        }
+        
+        /* Flag Dialog Specifics */
+        .flag-dialog-subtitle { margin-bottom: 15px; font-size: 1em; color: var(--text-dialog-subtitle); }
+        .checkbox-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .checkbox-group label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .flag-comment-textarea { width: 100%; height: 80px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-medium); margin-bottom: 20px; font-family: inherit; resize: vertical; }
+
+        /* Loading Spinner */
+        .loading { text-align: center; padding: 40px; color: var(--text-muted); position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .spinner { border: 4px solid var(--spinner-track); border-top: 4px solid var(--spinner-accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; transition: border-top-color 0.5s ease; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Styles for the completion dialog and ranked list */
+        .dialog-content-completion {
+            display: flex;
+            flex-direction: row;
+            gap: 30px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+        }
+        .completion-info-panel { /* New table */
+            flex: 0 0 266px; /* Do not grow, do not shrink; base width is 266px to nicely flow "been / automatically" */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .completion-list-panel {
+            flex-grow: 1; /* Take up remaining space */
+            display: flex; /* Use flexbox to contain the scrolling area */
+            overflow: hidden; /* Hide anything that spills */
+        }
+        .ranking-list-container {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+        }
+        .ranking-list-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .ranking-list-container th, .ranking-list-container td {
+            font-weight: normal; 
+            padding: 10px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-light);
+            white-space: nowrap;
+        }
+        .ranking-list-container td:first-child {
+            text-align: right;
+            font-weight: normal; 
+            color: var(--primary-color-hover);
+            width: 1%; /* Shrink to fit content */
+        }
+        .ranking-list-container thead tr {
+            position: sticky;
+            top: 0;
+            background: var(--panel-bg-light);
+            z-index: 10;
+        }
+        .ranking-list-container tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .ranking-list-container tbody tr:nth-child(even) {
+            background-color: var(--panel-bg-light);
+        }
+    </style>
+</head>
+<body>
+    <!-- UPDATED: Initial file input screen -->
+    <div id="fileInputContainer" class="initial-container">
+        <div class="file-input-box">
+            <h1>Comparative Judgement</h1>
+            <ol id="instruction-list">
+                <li>Upload student scripts.</li>
+                <li>Use the arrow keys to select the stronger script.</li>
+                <li>Optionally flag or comment scripts.</li>
+                <li>Download the ranked and scored teacher report.</li>
+            </ol>
+            <input type="file" id="fileInput" multiple accept=".pdf,.txt,.html,image/*,audio/*,video/*" webkitdirectory style="display: none;">
+            <button id="upload-button" class="btn btn-decision" onclick="document.getElementById('fileInput').click()">
+                Select Files
+                <div class="shortcut-hint">Enter</div>
+            </button>
+        </div>
+    </div>
+
+    <div class="top-toolbar" id="topToolbar" style="display: none;">
+        <button class="btn btn-decision" id="leftBtn" onclick="recordWinner('left')" title="Left is Better (← or A)">← Left is Better<div class="shortcut-hint">← / A</div></button>
+        <button class="btn btn-secondary" id="flagLeftBtn" onclick="showFlagDialog('left')" title="Flag Left Script (F)"><span class="btn-flag-symbol" id="leftFlagSymbol">⚐</span> Flag Left<div class="shortcut-hint">F</div></button>
+        <div class="progress-container"><div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div><div class="progress-text" id="progressText">Select Files to Begin</div></div>
+        <button class="btn btn-secondary" id="undoBtn" onclick="undoLastDecision()" disabled title="Undo Last Decision (U)">↶ Undo<div class="shortcut-hint">U</div></button>
+        <button class="btn btn-secondary" id="flagRightBtn" onclick="showFlagDialog('right')" title="Flag Right Script (G)"><span class="btn-flag-symbol" id="rightFlagSymbol">⚐</span> Flag Right<div class="shortcut-hint">G</div></button>
+        <button class="btn btn-decision" id="rightBtn" onclick="recordWinner('right')" title="Right is Better (→ or D)">Right is Better →<div class="shortcut-hint">D / →</div></button>
+    </div>
+    
+    <div class="main-container" id="mainContainer" style="display: none;">
+        <div class="file-panel" id="leftFilePanel">
+            <div class="file-header">Left Script</div>
+            <div class="file-container" id="leftContainer"><div class="loading"><div class="spinner"></div>Loading File...</div></div>
+        </div>
+        <div class="file-panel" id="rightFilePanel">
+            <div class="file-header">Right Script</div>
+            <div class="file-container" id="rightContainer"><div class="loading"><div class="spinner"></div>Loading File...</div></div>
+        </div>
+    </div>
+
+    <div id="flagDialog" style="display: none;">
+        <div class="dialog-content">
+            <div id="flagDialogTitle" class="dialog-title">Flag This Script</div>
+            <p class="flag-dialog-subtitle">Please select one or more reasons for flagging:</p>
+            <div class="checkbox-group">
+                <label><input type="checkbox" name="flagType" value="Non-Attempt"> Non-Attempt</label>
+                <label><input type="checkbox" name="flagType" value="Mark for Review"> Mark for Review</label>
+                <label><input type="checkbox" name="flagType" value="Plagiarism / AI"> Plagiarism / AI</label>
+                <label><input type="checkbox" name="flagType" value="Pastoral Concern"> Pastoral Concern</label>
+            </div>
+            <textarea id="flagComment" class="flag-comment-textarea" placeholder="Add optional comments..."></textarea>
+            <div class="dialog-button-container">
+                <button id="saveFlagBtn" class="btn btn-decision" title="Save Flag and Continue (Escape)">Save Flag<div class="shortcut-hint">Escape</div></button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // ================================================================================= //
+        // COMPARATIVE SORTING LOGIC
+        // ================================================================================= //
+        class MergeSort {
+            constructor(items) {
+                // Store name, path, and original index for each item
+                this.original_items = items.map((item, index) => ({ 
+                    name: item.name, 
+                    path: item.webkitRelativePath, 
+                    originalIndex: index 
+                }));
+                this.sorted_array = [...this.original_items];
+                this.history = []; this.sublist_size = 1; this.left_start_index = 0;
+                this.left_sublist = []; this.right_sublist = []; this.left_pointer = 0;
+                this.right_pointer = 0; this.temp_merged_list = []; this.current_comparison = null;
+                this._is_complete = false; this.comparisons_made = 0;
+                const n = this.original_items.length;
+                this.estimated_total_comparisons = n <= 1 ? 0 : Math.ceil(n * Math.log2(n) - n + 1);
+                this._setupNextMerge();
+            }
+            _setupNextMerge() {
+                if (this.sublist_size >= this.original_items.length) { this._is_complete = true; this.current_comparison = null; return; }
+                const right_start_index = this.left_start_index + this.sublist_size;
+                if (this.left_start_index >= this.original_items.length) { this.sublist_size *= 2; this.left_start_index = 0; this._setupNextMerge(); return; }
+                if (right_start_index >= this.original_items.length) { this.left_start_index += this.sublist_size * 2; this._setupNextMerge(); return; }
+                const right_end_index = Math.min(right_start_index + this.sublist_size, this.original_items.length);
+                this.left_sublist = this.sorted_array.slice(this.left_start_index, right_start_index);
+                this.right_sublist = this.sorted_array.slice(right_start_index, right_end_index);
+                this.left_pointer = 0; this.right_pointer = 0; this.temp_merged_list = [];
+                this._primeNextComparison();
+            }
+            _primeNextComparison() {
+                if (this.left_pointer < this.left_sublist.length && this.right_pointer < this.right_sublist.length) { this.current_comparison = [this.left_sublist[this.left_pointer], this.right_sublist[this.right_pointer]]; return; }
+                this.temp_merged_list.push(...this.left_sublist.slice(this.left_pointer));
+                this.temp_merged_list.push(...this.right_sublist.slice(this.right_pointer));
+                this._commitMerge();
+            }
+            _commitMerge() {
+                this.sorted_array.splice(this.left_start_index, this.temp_merged_list.length, ...this.temp_merged_list);
+                this.left_start_index += this.sublist_size * 2;
+                this._setupNextMerge();
+            }
+            addComparisonResult(leftIsBetter) {
+                if (this.isComplete()) return;
+                this.history.push({ sorted_array: structuredClone(this.sorted_array), sublist_size: this.sublist_size, left_start_index: this.left_start_index, left_sublist: structuredClone(this.left_sublist), right_sublist: structuredClone(this.right_sublist), left_pointer: this.left_pointer, right_pointer: this.right_pointer, temp_merged_list: structuredClone(this.temp_merged_list), comparisons_made: this.comparisons_made, });
+                this.comparisons_made++;
+                if (leftIsBetter) { this.temp_merged_list.push(this.left_sublist[this.left_pointer]); this.left_pointer++; } else { this.temp_merged_list.push(this.right_sublist[this.right_pointer]); this.right_pointer++; }
+                this._primeNextComparison();
+            }
+            undo() { if (this.history.length === 0) return false; const lastState = this.history.pop(); Object.assign(this, lastState); this._primeNextComparison(); return true; }
+            getCurrentComparisonItems() { return this.current_comparison; }
+            isComplete() { return this._is_complete; }
+            getProgress() { const total = this.estimated_total_comparisons; if (total === 0) return { percent: 100, made: 0, total: 0 }; const percent = Math.min(100, (this.comparisons_made / total) * 100); return { percent, made: this.comparisons_made, total: `~${total}` }; }
+            getFinalRanking() { return this.isComplete() ? [...this.sorted_array] : null; }
+        }
+
+        // ================================================================================= //
+        // GLOBAL STATE & UI MANAGEMENT
+        // ================================================================================= //
+
+        let sorter = null, currentFiles = [], fileUrls = [], scriptFlags = new Map();
+        let currentlyFlagging = null; // -> { side, index, takenOverPanel }
+        let currentLeftIndex = null, currentRightIndex = null;
+
+        // --- Colour Themes ---
+        const themes = [
+            { '--primary-color': '#e74c3c', '--primary-color-hover': '#c0392b', '--gradient-start': '#502c2c', '--gradient-end': '#e74c3c', '--header-bg': '#502c2c', '--spinner-accent': '#e74c3c' }, // Red
+            { '--primary-color': '#a762e4', '--primary-color-hover': '#894dbe', '--gradient-start': '#3f304e', '--gradient-end': '#a762e4', '--header-bg': '#3f304e', '--spinner-accent': '#a762e4' }, // Purple
+            { '--primary-color': '#1d88fb', '--primary-color-hover': '#0b6dd1', '--gradient-start': '#243953', '--gradient-end': '#1d88fb', '--header-bg': '#243953', '--spinner-accent': '#1d88fb' }, // Blue
+            { '--primary-color': '#283637', '--primary-color-hover': '#081516', '--gradient-start': '#283637', '--gradient-end': '#7f8c8d', '--header-bg': '#283637', '--spinner-accent': '#b0c1c2' }, // Blue-Grey
+            { '--primary-color': '#38a317', '--primary-color-hover': '#278602', '--gradient-start': '#283f24', '--gradient-end': '#38a317', '--header-bg': '#283f24', '--spinner-accent': '#38a317' }, // Green
+            { '--primary-color': '#be7800', '--primary-color-hover': '#9c6100', '--gradient-start': '#483315', '--gradient-end': '#be7800', '--header-bg': '#483315', '--spinner-accent': '#be7800' } // Orange
+        ];
+        let currentThemeIndex = 0;
+        function applyTheme(index) { const theme = themes[index]; for (const [key, value] of Object.entries(theme)) { document.documentElement.style.setProperty(key, value); } }
+
+        // --- Event Listeners ---
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            // Filter for supported file types using MIME types and extensions for robustness
+            const files = Array.from(e.target.files).filter(file =>
+                /\.(pdf|txt|html)$/i.test(file.name) ||
+                file.type.startsWith('image/') ||
+                file.type.startsWith('audio/') ||
+                file.type.startsWith('video/')
+            );
+            if (files.length < 2) { 
+                showMessageBox('Error', 'Please select a folder containing at least 2 supported files (PDF, TXT, HTML, Image, Audio, or Video).'); 
+                return; 
+            }
+            cleanupUrls(); currentFiles = files; shuffleArray(currentFiles);
+            fileUrls = currentFiles.map(file => URL.createObjectURL(file));
+            scriptFlags = new Map(); sorter = new MergeSort(currentFiles);
+            document.getElementById('fileInputContainer').style.display = 'none';
+            document.getElementById('mainContainer').style.display = 'flex';
+            document.getElementById('topToolbar').style.display = 'flex';
+            loadComparison();
+        });
+        window.addEventListener('beforeunload', cleanupUrls);
+        
+        document.addEventListener('keydown', (e) => {
+            // FIRST: Check if the user is typing in an input. If so, do nothing.
+            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) && e.key !== 'Escape') {
+                return;
+            }
+
+            // THEN: Process global shortcuts that work on any screen.
+            if (e.key === 'c') { 
+                e.preventDefault(); 
+                currentThemeIndex = (currentThemeIndex + 1) % themes.length; 
+                applyTheme(currentThemeIndex); 
+                return; 
+            }
+            if (e.key === 'k') { 
+                e.preventDefault(); 
+                document.body.classList.toggle('hide-shortcuts'); 
+                return; 
+            }
+
+            // THEN: Check for different UI states and handle their specific shortcuts.
+            const isInitialScreen = document.getElementById('fileInputContainer').style.display !== 'none';
+            const isFlagDialogOpen = currentlyFlagging !== null;
+            const isCompletionDialogOpen = !!document.getElementById('completionDialog');
+
+            if (isInitialScreen) { 
+                if (e.key === 'Enter') { 
+                    e.preventDefault(); 
+                    document.getElementById('fileInput').click(); 
+                } 
+                return; 
+            }
+            if (isFlagDialogOpen) { 
+                if (e.key === 'Escape') { 
+                    e.preventDefault(); 
+                    saveFlag(); 
+                } 
+                return; 
+            }
+            if (isCompletionDialogOpen) { 
+                if (e.key === 'Enter') { 
+                    e.preventDefault(); 
+                    document.getElementById('copyBtn')?.click(); 
+                } else if (e.key === 'Escape') { 
+                    e.preventDefault(); 
+                    document.getElementById('restartBtn')?.click(); 
+                } 
+                return; 
+            }
+
+            // FINALLY: If no other conditions are met, process the main comparison shortcuts.
+            e.preventDefault();
+            switch(e.key.toLowerCase()) {
+                case 'arrowleft': case 'a': 
+                    document.getElementById('leftBtn').click(); 
+                    break;
+                case 'arrowright': case 'd': 
+                    document.getElementById('rightBtn').click(); 
+                    break;
+                case 'u': 
+                    document.getElementById('undoBtn').click(); 
+                    break;
+                case 'f': 
+                    document.getElementById('flagLeftBtn').click(); 
+                    break;
+                case 'g': 
+                    document.getElementById('flagRightBtn').click(); 
+                    break;
+            }
+        });
+        
+        // --- UI Update Functions ---
+        function loadComparison() {
+            if (sorter.isComplete()) { generateFinalRanking(); return; }
+            const comparisonItems = sorter.getCurrentComparisonItems();
+            if (comparisonItems) {
+                const [leftItem, rightItem] = comparisonItems;
+                if (currentLeftIndex !== leftItem.originalIndex) { 
+                    loadFileContent(document.getElementById('leftContainer'), fileUrls[leftItem.originalIndex], leftItem); 
+                    currentLeftIndex = leftItem.originalIndex; 
+                }
+                if (currentRightIndex !== rightItem.originalIndex) { 
+                    loadFileContent(document.getElementById('rightContainer'), fileUrls[rightItem.originalIndex], rightItem); 
+                    currentRightIndex = rightItem.originalIndex; 
+                }
+                updateFlagSymbol('left', leftItem.originalIndex);
+                updateFlagSymbol('right', rightItem.originalIndex);
+                updateUI();
+            }
+        }
+        function updateUI() { const progress = sorter.getProgress(); document.getElementById('progressText').textContent = `Progress: ${progress.made} of ${progress.total} (${progress.percent.toFixed(1)}%)`; document.getElementById('progressFill').style.width = `${progress.percent}%`; document.getElementById('undoBtn').disabled = sorter.history.length === 0; }
+        
+        function updateFlagSymbol(side, index) {
+            const symbolElement = document.getElementById(`${side}FlagSymbol`);
+            const buttonElement = document.getElementById(`flag${side.charAt(0).toUpperCase() + side.slice(1)}Btn`);
+            const flagData = scriptFlags.get(index);
+            const isFlagged = flagData && (flagData.types.length > 0 || flagData.comment.trim());
+        
+            symbolElement.textContent = isFlagged ? '⚑' : '⚐';
+        
+            if (isFlagged) {
+                buttonElement.classList.add('btn-flagged');
+            } else {
+                buttonElement.classList.remove('btn-flagged');
+            }
+        }
+
+        async function loadFileContent(container, url, item) {
+            container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading File...</div>';
+        
+            const originalFile = currentFiles[item.originalIndex];
+            const fileType = originalFile ? originalFile.type : '';
+            const fileName = item.name;
+        
+            try {
+                // Handle Audio
+                if (fileType.startsWith('audio/')) {
+                    const audio = document.createElement('audio');
+                    audio.className = 'file-audio';
+                    audio.controls = true;
+                    audio.src = url;
+                    container.innerHTML = '';
+                    container.appendChild(audio);
+                }
+                // Handle Video
+                else if (fileType.startsWith('video/')) {
+                    const video = document.createElement('video');
+                    video.className = 'file-image'; // Re-use class for object-fit and sizing
+                    video.controls = true;
+                    video.src = url;
+                    container.innerHTML = '';
+                    container.appendChild(video);
+                }
+                // Handle Images
+                else if (fileType.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.className = 'file-image';
+                    img.src = url;
+                    img.onload = () => { container.innerHTML = ''; container.appendChild(img); };
+                    img.onerror = () => { throw new Error("Image failed to load."); };
+                }
+                // Handle TXT files
+                else if (fileName.toLowerCase().endsWith('.txt')) {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error("TXT file network response was not ok.");
+                    const textContent = await response.text();
+                    const sanitizedContent = textContent.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    const htmlContent = `<html><head><style>body{margin:0;font-size:1.5em;line-height:1.5;color:#333}pre{white-space:pre-wrap;word-wrap:break-word;padding:50px;margin:0}</style></head><body><pre>${sanitizedContent}</pre></body></html>`;
+                    const iframe = document.createElement('iframe');
+                    iframe.className = 'file-iframe';
+                    iframe.srcdoc = htmlContent;
+                    container.innerHTML = '';
+                    container.appendChild(iframe);
+                }
+                // Default handler for PDF/HTML
+                else {
+                    const iframe = document.createElement('iframe');
+                    iframe.className = 'file-iframe';
+                    iframe.src = url;
+                    iframe.onload = () => { if (container.firstChild?.className === 'loading') { container.innerHTML = ''; container.appendChild(iframe); } };
+                    iframe.onerror = () => { throw new Error("Iframe content (PDF/HTML) failed to load."); };
+                    setTimeout(() => { if (container.firstChild?.className === 'loading') container.appendChild(iframe); }, 100);
+                }
+            } catch (error) {
+                console.error("Error loading file content:", error);
+                container.innerHTML = `<div class="loading">Error: ${error.message}</div>`;
+            }
+        }
+
+        function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } }
+
+        // --- Core Actions ---
+        function recordWinner(winnerSide) { if (!sorter || sorter.isComplete()) return; sorter.addComparisonResult(winnerSide === 'left'); loadComparison(); }
+        function undoLastDecision() { if (sorter.undo()) { currentLeftIndex = null; currentRightIndex = null; loadComparison(); } }
+        function generateFinalRanking() {
+            const finalRanking = sorter.getFinalRanking(); if (!finalRanking) return;
+            document.getElementById('progressFill').style.width = '100%';
+            const progress = sorter.getProgress(); document.getElementById('progressText').textContent = `Complete! ${progress.made} comparisons (100.0%)`;
+            ['leftBtn', 'rightBtn', 'undoBtn', 'flagLeftBtn', 'flagRightBtn'].forEach(id => document.getElementById(id).disabled = true);
+            downloadCSV(finalRanking); showCompletionDialog(finalRanking);
+        }
+
+        // --- Flagging Logic ---
+        function showFlagDialog(side) {
+            const [leftItem, rightItem] = sorter.getCurrentComparisonItems();
+            const itemToFlag = (side === 'left') ? leftItem : rightItem;
+            const inactiveSide = (side === 'left') ? 'right' : 'left';
+            const panelToTakeOver = document.getElementById(`${inactiveSide}FilePanel`);
+            currentlyFlagging = { side, index: itemToFlag.originalIndex, takenOverPanel: panelToTakeOver };
+            panelToTakeOver.classList.add('dialog-active');
+            const flagDialog = document.getElementById('flagDialog');
+            const commentBox = document.getElementById('flagComment');
+            document.querySelectorAll('#flagDialog input[type="checkbox"]').forEach(cb => cb.checked = false);
+            commentBox.value = '';
+            
+            const arrow = side === 'left' ? '← ' : ' →';
+            const position = side === 'left' ? 'before' : 'after';
+            if (position === 'before') {
+                document.getElementById('flagDialogTitle').textContent = `${arrow}Flag ${side.charAt(0).toUpperCase() + side.slice(1)} Script`;
+            } else {
+                document.getElementById('flagDialogTitle').textContent = `Flag ${side.charAt(0).toUpperCase() + side.slice(1)} Script${arrow}`;
+            }
+
+            if (scriptFlags.has(itemToFlag.originalIndex)) {
+                const flagData = scriptFlags.get(itemToFlag.originalIndex);
+                flagData.types.forEach(type => { const cb = document.querySelector(`#flagDialog input[value="${type}"]`); if (cb) cb.checked = true; });
+                commentBox.value = flagData.comment;
+            }
+            panelToTakeOver.appendChild(flagDialog);
+            flagDialog.style.display = 'flex';
+            setTimeout(() => commentBox.focus(), 50);
+        }
+        function saveFlag() {
+            if (!currentlyFlagging) return;
+            const types = Array.from(document.querySelectorAll('#flagDialog input:checked')).map(cb => cb.value);
+            const comment = document.getElementById('flagComment').value.trim();
+            if (types.length > 0 || comment.length > 0) { scriptFlags.set(currentlyFlagging.index, { types, comment }); } else { scriptFlags.delete(currentlyFlagging.index); }
+            updateFlagSymbol(currentlyFlagging.side, currentlyFlagging.index);
+            closeFlagDialog();
+        }
+        function closeFlagDialog() {
+            if (!currentlyFlagging) return;
+            const flagDialog = document.getElementById('flagDialog');
+            flagDialog.style.display = 'none';
+            document.body.appendChild(flagDialog);
+            if (currentlyFlagging.takenOverPanel) { currentlyFlagging.takenOverPanel.classList.remove('dialog-active'); }
+            currentlyFlagging = null;
+        }
+        document.getElementById('saveFlagBtn').addEventListener('click', saveFlag);
+
+        // --- Dialogs and Downloads ---
+        function showMessageBox(title, message) { const existingBox = document.getElementById('customMessageBox'); if (existingBox) existingBox.remove(); const messageBox = document.createElement('div'); messageBox.id = 'customMessageBox'; messageBox.className = 'dialog-overlay'; messageBox.innerHTML = `<div class="dialog-content"><div class="dialog-title">${title}</div><p class="dialog-stats">${message}</p><div class="dialog-button-container"><button class="btn btn-decision" id="messageBoxOkBtn">OK</button></div></div>`; document.body.appendChild(messageBox); document.getElementById('messageBoxOkBtn').onclick = () => messageBox.remove(); }
+        
+        function showCompletionDialog(ranking) {
+            const dialog = document.createElement('div');
+            dialog.className = 'dialog-overlay';
+            dialog.id = 'completionDialog';
+        
+            // Generate the HTML for the ranked list table
+            let rankingHtml = `<div class="ranking-list-container"><table><thead><tr><th>Rank</th><th>Name</th></tr></thead><tbody>`;
+            ranking.forEach((item, index) => {
+                const rank = index + 1;
+                const nameWithoutExt = item.name.replace(/\.[^/.]+$/, "");
+                const sanitizedName = nameWithoutExt.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                rankingHtml += `<tr><td>${rank}</td><td>${sanitizedName}</td></tr>`;
+            });
+            rankingHtml += '</tbody></table></div>';
+        
+            // Create the new dialog structure with two panels
+            dialog.innerHTML = `<div class="dialog-content dialog-content-completion">
+                <div class="completion-info-panel">
+                    <div class="dialog-title">Ranking Complete!</div>
+                    <div class="dialog-stats">
+                        Total Comparisons: ${sorter.getProgress().made}<br>
+                        Students Ranked: ${currentFiles.length}<br><br>
+                        A CSV of the results has been automatically downloaded.
+                    </div>
+                    <div class="dialog-button-container">
+                        <button class="btn btn-decision" id="copyBtn" title="Copy results to clipboard (Enter)">Copy Results<div class="shortcut-hint">Enter</div></button>
+                        <button class="btn btn-secondary" id="restartBtn" title="Start a new ranking (Escape)">New Ranking<div class="shortcut-hint">Escape</div></button>
+                    </div>
+                </div>
+                <div class="completion-list-panel">
+                    ${rankingHtml}
+                </div>
+            </div>`;
+        
+            document.body.appendChild(dialog);
+            document.getElementById('copyBtn').onclick = () => copyCSVToClipboard(ranking);
+            document.getElementById('restartBtn').onclick = () => location.reload();
+        }
+
+        function generateCSVContent(ranking) {
+            // New header with "Rankit-Z" and "Z-Score", and re-ordered columns
+            const header = 'Rank,Name,Rankit-Z,Z-Score,Flag,Comment';
+            const rows = ranking.map((item, index) => {
+                const rank = index + 1;
+                // Remove the extension from the name for the "Name" column
+                const nameWithoutExt = `"${item.name.replace(/\.[^/.]+$/, "").replace(/"/g, '""')}"`;
+                const flagData = scriptFlags.get(item.originalIndex);
+                const flagTypes = flagData ? `"${flagData.types.join('; ')}"` : '""';
+                const flagComment = flagData ? `"${flagData.comment.replace(/"/g, '""')}"` : '""';
+                const spreadsheetRow = index + 2;
+                
+                // Formula for the "Rankit-Z" column (formerly Z-Score)
+                const rankitZFormula = `=NORMSINV((COUNT(A:A)-A${spreadsheetRow}+0.5)/COUNT(A:A))`;
+                
+                // New formula for the new "Z-Score" column, which references the Rankit-Z in column C
+                const newZFormula = `=(C${spreadsheetRow}-AVERAGE(C:C))/STDEVP(C:C)`;
+
+                // Return row data in the new column order
+                return [rank, nameWithoutExt, rankitZFormula, newZFormula, flagTypes, flagComment].join(',');
+            });
+            return [header, ...rows].join('\n');
+        }
+
+        function copyCSVToClipboard(ranking) { const csvContent = generateCSVContent(ranking); const copyBtn = document.getElementById('copyBtn'); const tempTextArea = document.createElement('textarea'); tempTextArea.value = csvContent; document.body.appendChild(tempTextArea); tempTextArea.select(); try { document.execCommand('copy'); copyBtn.textContent = 'Copied!'; copyBtn.disabled = true; setTimeout(() => { copyBtn.innerHTML = `Copy Results<div class="shortcut-hint">Enter</div>`; copyBtn.disabled = false; }, 2000); } catch (err) { console.error('Could not copy text: ', err); showMessageBox('Copy Failed', 'Could not copy results to clipboard. Please check browser permissions.'); } finally { document.body.removeChild(tempTextArea); } }
+        function downloadCSV(ranking) { const csvContent = generateCSVContent(ranking); const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); const url = URL.createObjectURL(blob); link.setAttribute('href', url); const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-'); link.setAttribute('download', `Comparative Judgement Results ${timestamp}.csv`); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url); }
+        function cleanupUrls() { fileUrls.forEach(url => URL.revokeObjectURL(url)); fileUrls = []; }
+    </script>
+</body>
+</html>
